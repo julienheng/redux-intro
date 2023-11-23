@@ -13,7 +13,7 @@ function Customer() {
     if (!fullName || !nationalId) return;
 
     // IMPORT THE ACTION FROM SLICE
-    dispatch(createCustomer(fullName, nationalId))
+    dispatch(createCustomer(fullName, nationalId, new Date().toISOString()));
   }
 
   return (

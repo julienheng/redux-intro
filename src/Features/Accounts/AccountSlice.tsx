@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import { createSlice } from "@reduxjs/toolkit";
 
 const initialState = {
   balance: 0,
@@ -14,29 +14,62 @@ const accountSlice = createSlice({
   initialState,
   reducers: {
     deposit(state, action) {
-      state.balance = state.balance + action.payload;
+      state.balance += action.payload;
+      state.isLoading = false;
     },
     withdraw(state, action) {
-      state.balance = state.balance - action.payload;
+      state.balance -= action.payload;
     },
-    requestLoan(state, action) {
-      if (state.loan > 0) return state;
+    requestLoan: {
+      prepare(amount: number, purpose: string) {
+        return {
+          payload: {
+            amount,
+            purpose,
+          },
+          meta: undefined,
+          error: undefined,
+        };
+      },
+      reducer(state, action) {
+        if (state.loan > 0) return state;
 
-      state.loan = action.payload.amount;
-      state.loanPurpose = action.payload.purpose;
-      state.balance += action.payload.amount;
+        state.loan = action.payload.amount;
+        state.loanPurpose = action.payload.purpose;
+        state.balance += action.payload.amount;
+      },
     },
-    payLoan(state, action) {
+    payLoan(state) {
       state.balance -= state.loan;
       state.loan = 0;
       state.loanPurpose = "";
     },
+    convertingCurrenty(state) {
+      state.isLoading = true;
+    },
   },
 });
 
-console.log(accountSlice);
 
-export const { deposit, withdraw, requestLoan, payLoan } = accountSlice.actions;
+export const { withdraw, requestLoan, payLoan } = accountSlice.actions;
+
+export function deposit(amount: number, currency: string) {
+  if (currency === "USD") return { type: "account/deposit", payload: amount };
+
+  return async function (dispatch: any) {
+    // API CALL
+    dispatch({ type: "account/convertingCurrenty" });
+
+    const res = await fetch(
+      `https://api.frankfurter.app/latest?amount=${amount}&from=${currency}&to=USD`
+    );
+    const data = await res.json();
+    const converted = data.rates.USD;
+
+    // RETURN ACTION
+    dispatch({ type: "account/deposit", payload: converted });
+  };
+}
 
 export default accountSlice.reducer;
 
